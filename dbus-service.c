@@ -156,7 +156,7 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   if (argc->cover_art_pathname) {
     char artURIstring[1024];
     snprintf(artURIstring, sizeof(artURIstring), "file://%s", argc->cover_art_pathname);
-    // debug(1,"artURI String: \"%s\".",artURIstring);
+    debug(1,"artURI String: \"%s\".",artURIstring);
     GVariant *artUrl = g_variant_new("s", artURIstring);
     g_variant_builder_add(dict_builder, "{sv}", "mpris:artUrl", artUrl);
   }

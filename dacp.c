@@ -525,12 +525,12 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
         int inactive = metadata_store.dacp_server_active == 0;
         if (inactive) {
           metadata_store.dacp_server_active = 1;
-          debug(2, "Setting dacp_server_active to active because of a response of %d.", result);
+          debug(1, "Setting dacp_server_active to active because of a response of %d.", result);
         }
         int same = metadata_store.advanced_dacp_server_active == (result == 200);
         if (!same) {
           metadata_store.advanced_dacp_server_active = (result == 200);
-          debug(2, "Setting dacp_advanced_server_active to %d because of a response of %d.",
+          debug(1, "Setting dacp_advanced_server_active to %d because of a response of %d.",
                 (result == 200), result);
         }
         metadata_hub_modify_epilog(inactive + (!same));

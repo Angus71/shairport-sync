@@ -71,7 +71,7 @@ void release_char_string(char **str) {
 }
 
 void metadata_hub_release_track_metadata(struct track_metadata_bundle *track_metadata) {
-  // debug(1,"release track metadata");
+  debug(1,"release track metadata");
   if (track_metadata) {
     release_char_string(&track_metadata->track_name);
     release_char_string(&track_metadata->artist_name);
@@ -94,8 +94,46 @@ void metadata_hub_release_track_metadata(struct track_metadata_bundle *track_met
 }
 
 void metadata_hub_release_track_artwork(void) {
-  // debug(1,"release track artwork");
+  debug(1,"release track artwork");
   release_char_string(&metadata_store.cover_art_pathname);
+}
+
+void mutable_string_init(mutable_string *mustr) {
+  if (mustr) {
+    mustr->the_string = NULL;
+    mustr->modified = 0;
+  } else {
+    debug(1,"no mutable string given!");
+  }
+}
+
+void mutable_string_update(mutable_string *mustr, char *s) {
+  if (mustr) {
+    if (mustr->the_string) {
+      if (strcmp(mustr->the_string,s) != 0) {
+        free(mustr->the_string);
+        mustr->the_string = strdup(s);
+        mustr->modified = 1;
+      }
+    } else {
+        mustr->the_string = strdup(s);
+        mustr->modified = 1;     
+    }
+  } else {
+    debug(1,"no mutable string given!");
+  }
+}
+
+int mutable_string_is_modified(mutable_string *mustr) {
+  if (mustr->modified)
+    return 1;
+  else
+    return 0;
+}
+
+char *mutable_string_get(mutable_string *mustr) {
+  mustr->modified = 0;
+  return mustr->the_string;
 }
 
 void metadata_hub_init(void) {
@@ -107,7 +145,7 @@ void metadata_hub_init(void) {
 
 void metadata_hub_stop(void) {
   if (metadata_hub_initialised) {
-    debug(2, "metadata_hub_stop.");
+    debug(1, "metadata_hub_stop.");
     metadata_hub_release_track_artwork();
     if (metadata_store.track_metadata) {
       metadata_hub_release_track_metadata(metadata_store.track_metadata);
@@ -176,7 +214,7 @@ void metadata_hub_modify_epilog(int modified) {
 
   if ((metadata_store.dacp_server_active == 0) &&
       (metadata_store.dacp_server_has_been_active != 0)) {
-    debug(2, "dacp_scanner going inactive -- release track metadata and artwork");
+    debug(1, "dacp_scanner going inactive -- release track metadata and artwork");
     if (metadata_store.track_metadata) {
       m = 1;
       metadata_hub_release_track_metadata(metadata_store.track_metadata);
@@ -499,6 +537,7 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
         debug(1, "This track metadata bundle still seems to exist -- releasing it");
         metadata_hub_release_track_metadata(track_metadata);
       }
+      // release_char_string(&metadata_store.cover_art_pathname);
       track_metadata = (struct track_metadata_bundle *)malloc(sizeof(struct track_metadata_bundle));
       if (track_metadata == NULL)
         die("Could not allocate memory for track metadata.");
@@ -506,6 +545,7 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       break;
     case 'mden':
       if (track_metadata) {
+        debug(1,"MDEN metadata_hub_release_track_metadata");
         metadata_hub_modify_prolog();
         metadata_hub_release_track_metadata(metadata_store.track_metadata);
         metadata_store.track_metadata = track_metadata;
@@ -515,13 +555,14 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       debug(2, "MH Metadata stream processing end.");
       break;
     case 'PICT':
+      metadata_hub_modify_prolog();
+      debug(1, "MH Picture received, length %u bytes.", length);
+      release_char_string(&metadata_store.cover_art_pathname);
       if (length > 16) {
-        metadata_hub_modify_prolog();
-        debug(2, "MH Picture received, length %u bytes.", length);
-        release_char_string(&metadata_store.cover_art_pathname);
         metadata_store.cover_art_pathname = metadata_write_image_file(data, length);
-        metadata_hub_modify_epilog(1);
+        debug(1, "MH Picture added.");
       }
+      metadata_hub_modify_epilog(1);
       break;
     /*
     case 'clip':

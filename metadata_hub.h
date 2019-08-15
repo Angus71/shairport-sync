@@ -30,6 +30,17 @@ enum repeat_status_type {
   RS_ALL,
 } repeat_status_type;
 
+
+typedef struct mutable_string {
+  char *the_string; // this should be assigned and freed using malloc/free strdup, etc.
+  int modified; // probably should be protected with a mutex. set when modified, clear when used
+} mutable_string;
+
+void mutable_string_init(mutable_string *mustr);
+void mutable_string_update(mutable_string *mustr, char *s);
+int mutable_string_is_modified(mutable_string *mustr);
+char *mutable_string_get(mutable_string *mustr);
+
 typedef struct track_metadata_bundle {
   uint32_t item_id;     // seems to be a track ID -- see itemid in DACP.c
   int item_id_received; // important for deciding if the track information should be ignored.
