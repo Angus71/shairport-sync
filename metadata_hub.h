@@ -36,10 +36,7 @@ typedef struct mutable_string {
   int modified; // probably should be protected with a mutex. set when modified, clear when used
 } mutable_string;
 
-void mutable_string_init(mutable_string *mustr);
-void mutable_string_update(mutable_string *mustr, char *s);
-int mutable_string_is_modified(mutable_string *mustr);
-char *mutable_string_get(mutable_string *mustr);
+int string_update(char**str, int* flag, char *s);
 
 typedef struct track_metadata_bundle {
   uint32_t item_id;     // seems to be a track ID -- see itemid in DACP.c
@@ -89,7 +86,8 @@ typedef struct metadata_bundle {
 
   struct track_metadata_bundle *track_metadata;
 
-  char *cover_art_pathname; // if non-zero, it will have been assigned with malloc.
+  char* cover_art_pathname; 
+  int cover_art_pathname_changed;
 
   enum play_status_type
       player_state; // this is the state of the actual player itself, which can be a bit noisy.

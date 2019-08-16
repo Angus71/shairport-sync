@@ -93,47 +93,27 @@ void metadata_hub_release_track_metadata(struct track_metadata_bundle *track_met
   }
 }
 
+/*
 void metadata_hub_release_track_artwork(void) {
   debug(1,"release track artwork");
   release_char_string(&metadata_store.cover_art_pathname);
 }
+*/
 
-void mutable_string_init(mutable_string *mustr) {
-  if (mustr) {
-    mustr->the_string = NULL;
-    mustr->modified = 0;
-  } else {
-    debug(1,"no mutable string given!");
-  }
-}
-
-void mutable_string_update(mutable_string *mustr, char *s) {
-  if (mustr) {
-    if (mustr->the_string) {
-      if (strcmp(mustr->the_string,s) != 0) {
-        free(mustr->the_string);
-        mustr->the_string = strdup(s);
-        mustr->modified = 1;
-      }
+int string_update(char **str, int *flag, char *s) {
+  if (*str) {
+      if (strcmp(*str,s) != 0) {
+        free(*str);
+        *str = strdup(s);
+        *flag = 1;
+      } else {
+        *flag = 0;
+      }      
     } else {
-        mustr->the_string = strdup(s);
-        mustr->modified = 1;     
+        *str = strdup(s);
+        *flag = 1;     
     }
-  } else {
-    debug(1,"no mutable string given!");
-  }
-}
-
-int mutable_string_is_modified(mutable_string *mustr) {
-  if (mustr->modified)
-    return 1;
-  else
-    return 0;
-}
-
-char *mutable_string_get(mutable_string *mustr) {
-  mustr->modified = 0;
-  return mustr->the_string;
+   return *flag;
 }
 
 void metadata_hub_init(void) {
@@ -144,6 +124,7 @@ void metadata_hub_init(void) {
 }
 
 void metadata_hub_stop(void) {
+/*
   if (metadata_hub_initialised) {
     debug(1, "metadata_hub_stop.");
     metadata_hub_release_track_artwork();
@@ -156,6 +137,7 @@ void metadata_hub_stop(void) {
       track_metadata = NULL;
     }
   }
+*/
 }
 
 void add_metadata_watcher(metadata_watcher fn, void *userdata) {
@@ -177,7 +159,7 @@ void metadata_hub_unlock_hub_mutex_cleanup(__attribute__((unused)) void *arg) {
 
 void run_metadata_watchers(void) {
   int i;
-  // debug(1, "locking metadata hub for reading");
+  // debug(1, "locking metadata hub for writing because we could turn off "changed" flags");
   pthread_rwlock_rdlock(&metadata_hub_re_lock);
   pthread_cleanup_push(metadata_hub_unlock_hub_mutex_cleanup, NULL);
   for (i = 0; i < number_of_watchers; i++) {
@@ -185,9 +167,9 @@ void run_metadata_watchers(void) {
       metadata_store.watchers[i](&metadata_store, metadata_store.watchers_data[i]);
     }
   }
-  // debug(1, "unlocking metadata hub for reading");
-  // pthread_rwlock_unlock(&metadata_hub_re_lock);
-  pthread_cleanup_pop(1);
+  //turn off changed flags
+  metadata_store.cover_art_pathname_changed = 0;
+  pthread_cleanup_pop(1); // this will unlock the hub lock
 }
 
 void metadata_hub_modify_prolog(void) {
@@ -209,6 +191,7 @@ void metadata_hub_modify_epilog(int modified) {
   // If it's already off, we do nothing
   // If it's transitioning to on, we will record it for use later.
 
+  /*
   int m = 0;
   int tm = modified;
 
@@ -228,10 +211,12 @@ void metadata_hub_modify_epilog(int modified) {
       debug(2, "Release track metadata after dacp server goes inactive.");
     tm += m;
   }
+  */
   metadata_store.dacp_server_has_been_active =
       metadata_store.dacp_server_active; // set the scanner_has_been_active now.
   pthread_rwlock_unlock(&metadata_hub_re_lock);
-  if (tm) {
+  // if (tm) {  
+  if (modified) {
     run_metadata_watchers();
   }
 }
@@ -554,6 +539,8 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       }
       debug(2, "MH Metadata stream processing end.");
       break;
+ 
+    /*
     case 'PICT':
       metadata_hub_modify_prolog();
       debug(1, "MH Picture received, length %u bytes.", length);
@@ -563,6 +550,24 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
         debug(1, "MH Picture added.");
       }
       metadata_hub_modify_epilog(1);
+      break;
+    */
+    
+    case 'PICT':
+      metadata_hub_modify_prolog();
+      debug(1, "MH Picture received, length %u bytes.", length);
+      char uri[2048];
+      if (length > 16) {
+        char *pathname = metadata_write_image_file(data, length);
+        snprintf(uri, sizeof(uri), "file://%s",pathname);
+        free(pathname);
+      } else {
+        uri[0] = '\0';
+      }
+      if (string_update(&metadata_store.cover_art_pathname, &metadata_store.cover_art_pathname_changed, uri)) // if the picture's file path is different from the stored one...
+        metadata_hub_modify_epilog(1);
+      else
+        metadata_hub_modify_epilog(0);
       break;
     /*
     case 'clip':
