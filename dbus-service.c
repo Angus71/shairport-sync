@@ -146,69 +146,82 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
     debug(1, "This should never happen.");
   }
 
-  GVariantBuilder *dict_builder, *aa;
+  GVariantBuilder *dict_builder;
+  int do_set_metadata = 0; // set to true if any changes are detected
 
-  /* Build the metadata array */
-  // debug(1,"Build metadata");
+  /* Build the metadata array of changes only */
+  debug(1,"Build metadata");
+  
   dict_builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
-  // Make up the artwork URI if we have one
+  // Make up the artwork URI if it has changed.
   if (argc->cover_art_pathname_changed) {
+    do_set_metadata = 1;
     debug(1,"artURI has changed to: \"%s\".",argc->cover_art_pathname);
     GVariant *artUrl = g_variant_new("s", argc->cover_art_pathname);
     g_variant_builder_add(dict_builder, "{sv}", "mpris:artUrl", artUrl);
   }
 
-  // Add the TrackID if we have one
-  if ((argc->track_metadata) && (argc->track_metadata->item_id)) {
+  // Make up the Track ID if it has changed.
+  if (argc->item_id_changed) {
+    debug(1, "Set ID using mper ID: \"%u\".",argc->item_id);
+    do_set_metadata = 1;
     char trackidstring[128];
     // debug(1, "Set ID using mper ID: \"%u\".",argc->item_id);
     snprintf(trackidstring, sizeof(trackidstring), "/org/gnome/ShairportSync/mper_%u",
-             argc->track_metadata->item_id);
+             argc->item_id);
     GVariant *trackid = g_variant_new("o", trackidstring);
     g_variant_builder_add(dict_builder, "{sv}", "mpris:trackid", trackid);
   }
 
-  // Add the track name if there is one
-  if ((argc->track_metadata) && (argc->track_metadata->track_name)) {
-    // debug(1, "Track name set to \"%s\".", argc->track_name);
-    GVariant *trackname = g_variant_new("s", argc->track_metadata->track_name);
-    g_variant_builder_add(dict_builder, "{sv}", "xesam:title", trackname);
+  // Add the track name if it has changed
+  if (argc->track_name_changed) {
+    do_set_metadata = 1;
+    debug(1,"track name has changed to: \"%s\".",argc->track_name);
+    GVariant *str = g_variant_new("s", argc->track_name);
+    g_variant_builder_add(dict_builder, "{sv}", "xesam:title", str);
   }
 
-  // Add the album name if there is one
-  if ((argc->track_metadata) && (argc->track_metadata->album_name)) {
-    // debug(1, "Album name set to \"%s\".", argc->album_name);
-    GVariant *albumname = g_variant_new("s", argc->track_metadata->album_name);
-    g_variant_builder_add(dict_builder, "{sv}", "xesam:album", albumname);
+  // Add the album name if it has changed
+  if (argc->album_name_changed) {
+    do_set_metadata = 1;
+    debug(1,"album name has changed to: \"%s\".",argc->album_name);
+    GVariant *str = g_variant_new("s", argc->album_name);
+    g_variant_builder_add(dict_builder, "{sv}", "xesam:album", str);
   }
 
-  // Add the artists if there are any (actually there will be at most one, but put it in an array)
-  if ((argc->track_metadata) && (argc->track_metadata->artist_name)) {
-    /* Build the artists array */
-    // debug(1,"Build artist array");
-    aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
-    g_variant_builder_add(aa, "s", argc->track_metadata->artist_name);
+  // Add the artist name if it has changed
+  if (argc->artist_name_changed) {
+    do_set_metadata = 1;
+    debug(1,"artist name has changed to: \"%s\".",argc->artist_name);
+    GVariantBuilder *aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
+    g_variant_builder_add(aa, "s", argc->artist_name);
     GVariant *artists = g_variant_builder_end(aa);
     g_variant_builder_unref(aa);
     g_variant_builder_add(dict_builder, "{sv}", "xesam:artist", artists);
   }
 
-  // Add the genres if there are any (actually there will be at most one, but put it in an array)
-  if ((argc->track_metadata) && (argc->track_metadata->genre)) {
-    // debug(1,"Build genre");
-    aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
-    g_variant_builder_add(aa, "s", argc->track_metadata->genre);
-    GVariant *genres = g_variant_builder_end(aa);
+  // Add the genre if it has changed
+  if (argc->genre_changed) {
+    do_set_metadata = 1;
+    debug(1,"genre has changed to: \"%s\".",argc->genre);
+    GVariantBuilder *aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
+    g_variant_builder_add(aa, "s", argc->genre);
+    GVariant *artists = g_variant_builder_end(aa);
     g_variant_builder_unref(aa);
-    g_variant_builder_add(dict_builder, "{sv}", "xesam:genre", genres);
+    g_variant_builder_add(dict_builder, "{sv}", "xesam:genre", artists);
   }
 
-  GVariant *dict = g_variant_builder_end(dict_builder);
-  g_variant_builder_unref(dict_builder);
-
-  // debug(1,"Set metadata");
-  shairport_sync_remote_control_set_metadata(shairportSyncRemoteControlSkeleton, dict);
+  // add the metadata if it contains anything
+  if (do_set_metadata) {
+    GVariant *dict = g_variant_builder_end(dict_builder);
+    g_variant_builder_unref(dict_builder);
+    shairport_sync_remote_control_set_metadata(shairportSyncRemoteControlSkeleton, dict);
+    debug(1,"Built");
+  } else {
+    g_variant_builder_unref(dict_builder);
+    debug(1,"Abandoned");
+  }
 }
 
 static gboolean on_handle_set_volume(ShairportSyncAdvancedRemoteControl *skeleton,

@@ -733,8 +733,7 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
                 case 'astm':
                   t = sp - item_size;
                   r = ntohl(*(uint32_t *)(t));
-                  if (metadata_store.track_metadata)
-                    metadata_store.track_metadata->songtime_in_milliseconds =
+                  metadata_store.songtime_in_milliseconds =
                         ntohl(*(uint32_t *)(t));
                   break;
 
