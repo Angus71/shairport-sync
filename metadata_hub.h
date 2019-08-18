@@ -30,9 +30,8 @@ enum repeat_status_type {
   RS_ALL,
 } repeat_status_type;
 
-
-int string_update(char**str, int* changed, char *s);
-int int_update(int* receptacle, int* changed, int value);
+int string_update(char **str, int *changed, char *s);
+int int_update(int *receptacle, int *changed, int value);
 
 struct metadata_bundle;
 
@@ -43,13 +42,13 @@ typedef struct metadata_bundle {
   char *client_ip; // IP number used by the audio source (i.e. the "client"), which is also the DACP
                    // server
   int client_ip_changed;
-  
+
   char *server_ip; // IP number used by Shairport Sync
   int server_ip_changed;
-  
-  char *progress_string;    // progress string, emitted by the source from time to time
+
+  char *progress_string; // progress string, emitted by the source from time to time
   int progress_string_changed;
-  
+
   int player_thread_active; // true if a play thread is running
   int dacp_server_active;   // true if there's a reachable DACP server (assumed to be the Airplay
                             // client) ; false otherwise
@@ -63,65 +62,65 @@ typedef struct metadata_bundle {
   enum play_status_type play_status;
   enum shuffle_status_type shuffle_status;
   enum repeat_status_type repeat_status;
-  
+
   // the following pertain to the track playing
 
-  char* cover_art_pathname; 
+  char *cover_art_pathname;
   int cover_art_pathname_changed;
-  
-  uint32_t item_id;     // seems to be a track ID -- see itemid in DACP.c
+
+  uint32_t item_id; // seems to be a track ID -- see itemid in DACP.c
   int item_id_changed;
   int item_id_received; // important for deciding if the track information should be ignored.
-  
+
   unsigned char
       item_composite_id[16]; // seems to be nowplaying 4 ids: dbid, plid, playlistItem, itemid
   int item_composite_id_changed;
-  
+
   char *track_name;
   int track_name_changed;
-  
+
   char *artist_name;
   int artist_name_changed;
-  
+
   char *album_artist_name;
   int album_artist_name_changed;
-  
+
   char *album_name;
   int album_name_changed;
-  
+
   char *genre;
   int genre_changed;
-  
+
   char *comment;
   int comment_changed;
-  
+
   char *composer;
   int composer_changed;
-  
+
   char *file_kind;
   int file_kind_changed;
-  
+
   char *song_description;
   int song_description_changed;
-  
+
   char *song_album_artist;
   int song_album_artist_changed;
-  
+
   char *sort_name;
   int sort_name_changed;
-  
+
   char *sort_artist;
   int sort_artist_changed;
-  
+
   char *sort_album;
   int sort_album_changed;
-  
+
   char *sort_composer;
   int sort_composer_changed;
-  
+
   uint32_t songtime_in_milliseconds;
-  int songtime_in_milliseconds_changed;  
-  
+  int songtime_in_milliseconds_changed;
+
   // end
 
   enum play_status_type
