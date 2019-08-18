@@ -150,24 +150,23 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   int do_set_metadata = 0; // set to true if any changes are detected
 
   /* Build the metadata array of changes only */
-  debug(1, "Build metadata");
+  debug(2, "Build metadata");
 
   dict_builder = g_variant_builder_new(G_VARIANT_TYPE("a{sv}"));
 
   // Make up the artwork URI if it has changed.
   if (argc->cover_art_pathname_changed) {
     do_set_metadata = 1;
-    debug(1, "artURI has changed to: \"%s\".", argc->cover_art_pathname);
+    debug(2, "artURI has changed to: \"%s\".", argc->cover_art_pathname);
     GVariant *artUrl = g_variant_new("s", argc->cover_art_pathname);
     g_variant_builder_add(dict_builder, "{sv}", "mpris:artUrl", artUrl);
   }
 
   // Make up the Track ID if it has changed.
   if (argc->item_id_changed) {
-    debug(1, "Set ID using mper ID: \"%u\".", argc->item_id);
+    debug(2, "Set ID using mper ID: \"%u\".", argc->item_id);
     do_set_metadata = 1;
     char trackidstring[128];
-    // debug(1, "Set ID using mper ID: \"%u\".",argc->item_id);
     snprintf(trackidstring, sizeof(trackidstring), "/org/gnome/ShairportSync/mper_%u",
              argc->item_id);
     GVariant *trackid = g_variant_new("o", trackidstring);
@@ -177,7 +176,7 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   // Add the track name if it has changed
   if (argc->track_name_changed) {
     do_set_metadata = 1;
-    debug(1, "track name has changed to: \"%s\".", argc->track_name);
+    debug(2, "track name has changed to: \"%s\".", argc->track_name);
     GVariant *str = g_variant_new("s", argc->track_name);
     g_variant_builder_add(dict_builder, "{sv}", "xesam:title", str);
   }
@@ -185,7 +184,7 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   // Add the album name if it has changed
   if (argc->album_name_changed) {
     do_set_metadata = 1;
-    debug(1, "album name has changed to: \"%s\".", argc->album_name);
+    debug(2, "album name has changed to: \"%s\".", argc->album_name);
     GVariant *str = g_variant_new("s", argc->album_name);
     g_variant_builder_add(dict_builder, "{sv}", "xesam:album", str);
   }
@@ -193,7 +192,7 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   // Add the artist name if it has changed
   if (argc->artist_name_changed) {
     do_set_metadata = 1;
-    debug(1, "artist name has changed to: \"%s\".", argc->artist_name);
+    debug(2, "artist name has changed to: \"%s\".", argc->artist_name);
     GVariantBuilder *aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
     g_variant_builder_add(aa, "s", argc->artist_name);
     GVariant *artists = g_variant_builder_end(aa);
@@ -204,7 +203,7 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
   // Add the genre if it has changed
   if (argc->genre_changed) {
     do_set_metadata = 1;
-    debug(1, "genre has changed to: \"%s\".", argc->genre);
+    debug(2, "genre has changed to: \"%s\".", argc->genre);
     GVariantBuilder *aa = g_variant_builder_new(G_VARIANT_TYPE("as"));
     g_variant_builder_add(aa, "s", argc->genre);
     GVariant *artists = g_variant_builder_end(aa);
@@ -217,17 +216,17 @@ void dbus_metadata_watcher(struct metadata_bundle *argc, __attribute__((unused))
     GVariant *dict = g_variant_builder_end(dict_builder);
     g_variant_builder_unref(dict_builder);
     shairport_sync_remote_control_set_metadata(shairportSyncRemoteControlSkeleton, dict);
-    debug(1, "Built");
+    debug(2, "Built");
   } else {
     g_variant_builder_unref(dict_builder);
-    debug(1, "Abandoned");
+    debug(2, "Abandoned");
   }
 }
 
 static gboolean on_handle_set_volume(ShairportSyncAdvancedRemoteControl *skeleton,
                                      GDBusMethodInvocation *invocation, const gint volume,
                                      __attribute__((unused)) gpointer user_data) {
-  debug(1, "Set volume to %d.", volume);
+  debug(2, "Set volume to %d.", volume);
   dacp_set_volume(volume);
   shairport_sync_advanced_remote_control_complete_set_volume(skeleton, invocation);
   return TRUE;

@@ -72,6 +72,22 @@ struct HttpResponse {
   int code;
 };
 
+int stringn_update(char **str, int *flag, char *s, size_t len) {
+  if (*str) {
+    if (strncmp(*str, s, len) != 0) {
+      free(*str);
+      *str = strndup(s, len);
+      *flag = 1;
+    } else {
+      *flag = 0;
+    }
+  } else {
+    *str = strndup(s, len);
+    *flag = 1;
+  }
+  return *flag;
+}
+
 void *response_realloc(__attribute__((unused)) void *opaque, void *ptr, int size) {
   void *t = realloc(ptr, size);
   if ((t == NULL) && (size != 0))
@@ -489,7 +505,7 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
     scan_index++;
     result = dacp_get_volume(&the_volume); // just want the http code
 
-    if ((result == 496) || (result == 403) || (result == 501)) {
+    if ((result == 403) || (result == 501)) {
       bad_result_count++;
       // debug(1,"Bad Scan : %d.",result);
     } else
@@ -517,8 +533,8 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
     if (dacp_server.scan_enable ==
         1) { // if it hasn't been turned off, continue looking for information.
       int transient_problem =
-          (result == 494) ||
-          (result == 495); // this just means that it couldn't send the query because something
+          (result == 494) || (result == 495) ||
+          (result == 496); // this just means that it couldn't send the query because something
                            // else
                            // was sending a command or something
       if ((!transient_problem) && (bad_result_count == 0) && (idle_scan_count == 0) &&
@@ -580,6 +596,7 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
                 // char u;
                 // char *st;
                 int32_t r;
+                uint32_t ui;
                 // uint64_t v;
                 // int i;
 
@@ -664,64 +681,42 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
                     break;
                   }
                   break;
-                /*
                 case 'cann': // track name
-                  t = sp - item_size;
-                  if ((metadata_store.track_name == NULL) ||
-                      (strncmp(metadata_store.track_name, t, item_size) != 0)) {
-                    if (metadata_store.track_name)
-                      free(metadata_store.track_name);
-                    metadata_store.track_name = strndup(t, item_size);
-                    debug(1, "Track name changed to: \"%s\"", metadata_store.track_name);
-                    metadata_store.track_name_changed = 1;
-                    metadata_store.changed = 1;
+                  debug(2, "DACP Track Name seen");
+                  if (stringn_update(&metadata_store.track_name, &metadata_store.track_name_changed,
+                                     sp - item_size, item_size)) {
+                    debug(2, "DACP Track Name set to: \"%s\"", metadata_store.track_name);
                   }
                   break;
                 case 'cana': // artist name
-                  t = sp - item_size;
-                  if ((metadata_store.artist_name == NULL) ||
-                      (strncmp(metadata_store.artist_name, t, item_size) != 0)) {
-                    if (metadata_store.artist_name)
-                      free(metadata_store.artist_name);
-                    metadata_store.artist_name = strndup(t, item_size);
-                    debug(1, "Artist name changed to: \"%s\"", metadata_store.artist_name);
-                    metadata_store.artist_name_changed = 1;
-                    metadata_store.changed = 1;
+                  debug(2, "DACP Artist Name seen");
+                  if (stringn_update(&metadata_store.artist_name,
+                                     &metadata_store.artist_name_changed, sp - item_size,
+                                     item_size)) {
+                    debug(2, "DACP Artist Name set to: \"%s\"", metadata_store.artist_name);
                   }
                   break;
                 case 'canl': // album name
-                  t = sp - item_size;
-                  if ((metadata_store.album_name == NULL) ||
-                      (strncmp(metadata_store.album_name, t, item_size) != 0)) {
-                    if (metadata_store.album_name)
-                      free(metadata_store.album_name);
-                    metadata_store.album_name = strndup(t, item_size);
-                    debug(1, "Album name changed to: \"%s\"", metadata_store.album_name);
-                    metadata_store.album_name_changed = 1;
-                    metadata_store.changed = 1;
+                  debug(2, "DACP Album Name seen");
+                  if (stringn_update(&metadata_store.album_name, &metadata_store.album_name_changed,
+                                     sp - item_size, item_size)) {
+                    debug(2, "DACP Album Name set to: \"%s\"", metadata_store.album_name);
                   }
                   break;
                 case 'cang': // genre
-                  t = sp - item_size;
-                  if ((metadata_store.genre == NULL) ||
-                      (strncmp(metadata_store.genre, t, item_size) != 0)) {
-                    if (metadata_store.genre)
-                      free(metadata_store.genre);
-                    metadata_store.genre = strndup(t, item_size);
-                    debug(1, "Genre changed to: \"%s\"", metadata_store.genre);
-                    metadata_store.genre_changed = 1;
-                    metadata_store.changed = 1;
+                  debug(2, "DACP Genre seen");
+                  if (stringn_update(&metadata_store.genre, &metadata_store.genre_changed,
+                                     sp - item_size, item_size)) {
+                    debug(2, "DACP Genre set to: \"%s\"", metadata_store.genre);
                   }
                   break;
                 case 'canp': // nowplaying 4 ids: dbid, plid, playlistItem, itemid (from mellowware
-                --
                              // see reference above)
-                  t = sp - item_size;
-                  if (memcmp(metadata_store.item_composite_id, t,
+                  debug(2, "DACP Composite ID seen");
+                  if (memcmp(metadata_store.item_composite_id, sp - item_size,
                              sizeof(metadata_store.item_composite_id)) != 0) {
-                    memcpy(metadata_store.item_composite_id, t,
+                    memcpy(metadata_store.item_composite_id, sp - item_size,
                            sizeof(metadata_store.item_composite_id));
-
                     char st[33];
                     char *pt = st;
                     int it;
@@ -730,16 +725,20 @@ void *dacp_monitor_thread_code(__attribute__((unused)) void *na) {
                       pt += 2;
                     }
                     *pt = 0;
-                    // debug(1, "Item composite ID set to 0x%s.", st);
-                    metadata_store.item_id_changed = 1;
-                    metadata_store.changed = 1;
+                    debug(2, "Item composite ID changed to 0x%s.", st);
+                    metadata_store.item_composite_id_changed = 1;
                   }
                   break;
-                */
                 case 'astm':
                   t = sp - item_size;
-                  r = ntohl(*(uint32_t *)(t));
-                  metadata_store.songtime_in_milliseconds = ntohl(*(uint32_t *)(t));
+                  ui = ntohl(*(uint32_t *)(t));
+                  debug(2, "DACP Song Time seen: \"%u\" of length %u.", ui, item_size);
+                  if (ui != metadata_store.songtime_in_milliseconds) {
+                    metadata_store.songtime_in_milliseconds = ui;
+                    metadata_store.songtime_in_milliseconds_changed = 1;
+                    debug(2, "DACP Song Time set to: \"%u\"",
+                          metadata_store.songtime_in_milliseconds);
+                  }
                   break;
 
                 /*

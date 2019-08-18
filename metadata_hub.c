@@ -165,38 +165,8 @@ void metadata_hub_modify_prolog(void) {
 }
 
 void metadata_hub_modify_epilog(int modified) {
-  // always run this after changing an entry or a sequence of entries in the metadata_hub
-  // debug(1, "unlocking metadata hub for writing");
-
-  // Here, we check to see if the dacp_server is transitioning between active and inactive
-  // If it's going off, we will release track metadata and image stuff
-  // If it's already off, we do nothing
-  // If it's transitioning to on, we will record it for use later.
-
-  /*
-  int m = 0;
-  int tm = modified;
-
-  if ((metadata_store.dacp_server_active == 0) &&
-      (metadata_store.dacp_server_has_been_active != 0)) {
-    debug(1, "dacp_scanner going inactive -- release track metadata and artwork");
-    if (metadata_store.track_metadata) {
-      m = 1;
-      metadata_hub_release_track_metadata(metadata_store.track_metadata);
-      metadata_store.track_metadata = NULL;
-    }
-    if (metadata_store.cover_art_pathname) {
-      m = 1;
-      metadata_hub_release_track_artwork();
-    }
-    if (m)
-      debug(2, "Release track metadata after dacp server goes inactive.");
-    tm += m;
-  }
-  */
   metadata_store.dacp_server_has_been_active =
       metadata_store.dacp_server_active; // set the scanner_has_been_active now.
-  // if (tm) {
   if (modified) {
     run_metadata_watchers();
   }
@@ -207,9 +177,9 @@ void metadata_hub_read_prolog(void) {
   // always run this before reading an entry or a sequence of entries in the metadata_hub
   // debug(1, "locking metadata hub for reading");
   if (pthread_rwlock_tryrdlock(&metadata_hub_re_lock) != 0) {
-    debug(1, "Metadata_hub read lock is already taken -- must wait.");
+    debug(2, "Metadata_hub read lock is already taken -- must wait.");
     pthread_rwlock_rdlock(&metadata_hub_re_lock);
-    debug(1, "Okay -- acquired the metadata_hub read lock.");
+    debug(2, "Okay -- acquired the metadata_hub read lock.");
   }
 }
 
@@ -359,25 +329,34 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
     switch (code) {
     case 'mper':
       ui = ntohl(*(uint32_t *)data);
-      debug(1, "MH Item ID seen: \"%u\" of length %u.", ui, length);
+      debug(2, "MH Item ID seen: \"%u\" of length %u.", ui, length);
       if (ui != metadata_store.item_id) {
         metadata_store.item_id = ui;
         metadata_store.item_id_changed = 1;
         metadata_store.item_id_received = 1;
-        debug(1, "MH Item ID set to: \"%u\"", metadata_store.item_id);
+        debug(2, "MH Item ID set to: \"%u\"", metadata_store.item_id);
+      }
+      break;
+    case 'astm':
+      ui = ntohl(*(uint32_t *)data);
+      debug(2, "MH Song Time seen: \"%u\" of length %u.", ui, length);
+      if (ui != metadata_store.songtime_in_milliseconds) {
+        metadata_store.songtime_in_milliseconds = ui;
+        metadata_store.songtime_in_milliseconds_changed = 1;
+        debug(2, "MH Song Time set to: \"%u\"", metadata_store.songtime_in_milliseconds);
       }
       break;
     case 'asal':
       cs = strndup(data, length);
       if (string_update(&metadata_store.album_name, &metadata_store.album_name_changed, cs)) {
-        debug(1, "MH Album name set to: \"%s\"", metadata_store.album_name);
+        debug(2, "MH Album name set to: \"%s\"", metadata_store.album_name);
       }
       free(cs);
       break;
     case 'asar':
       cs = strndup(data, length);
       if (string_update(&metadata_store.artist_name, &metadata_store.artist_name_changed, cs)) {
-        debug(1, "MH Artist name set to: \"%s\"", metadata_store.artist_name);
+        debug(2, "MH Artist name set to: \"%s\"", metadata_store.artist_name);
       }
       free(cs);
       break;
@@ -385,35 +364,35 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       cs = strndup(data, length);
       if (string_update(&metadata_store.album_artist_name,
                         &metadata_store.album_artist_name_changed, cs)) {
-        debug(1, "MH Album Artist name set to: \"%s\"", metadata_store.album_artist_name);
+        debug(2, "MH Album Artist name set to: \"%s\"", metadata_store.album_artist_name);
       }
       free(cs);
       break;
     case 'ascm':
       cs = strndup(data, length);
       if (string_update(&metadata_store.comment, &metadata_store.comment_changed, cs)) {
-        debug(1, "MH Comment set to: \"%s\"", metadata_store.comment);
+        debug(2, "MH Comment set to: \"%s\"", metadata_store.comment);
       }
       free(cs);
       break;
     case 'asgn':
       cs = strndup(data, length);
       if (string_update(&metadata_store.genre, &metadata_store.genre_changed, cs)) {
-        debug(1, "MH Genre set to: \"%s\"", metadata_store.genre);
+        debug(2, "MH Genre set to: \"%s\"", metadata_store.genre);
       }
       free(cs);
       break;
     case 'minm':
       cs = strndup(data, length);
       if (string_update(&metadata_store.track_name, &metadata_store.track_name_changed, cs)) {
-        debug(1, "MH Track Name set to: \"%s\"", metadata_store.track_name);
+        debug(2, "MH Track Name set to: \"%s\"", metadata_store.track_name);
       }
       free(cs);
       break;
     case 'ascp':
       cs = strndup(data, length);
       if (string_update(&metadata_store.composer, &metadata_store.composer_changed, cs)) {
-        debug(1, "MH Composer set to: \"%s\"", metadata_store.composer);
+        debug(2, "MH Composer set to: \"%s\"", metadata_store.composer);
       }
       free(cs);
       break;
@@ -421,7 +400,7 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       cs = strndup(data, length);
       if (string_update(&metadata_store.song_description, &metadata_store.song_description_changed,
                         cs)) {
-        debug(1, "MH Song Description set to: \"%s\"", metadata_store.song_description);
+        debug(2, "MH Song Description set to: \"%s\"", metadata_store.song_description);
       }
       free(cs);
       break;
@@ -429,35 +408,35 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
       cs = strndup(data, length);
       if (string_update(&metadata_store.song_album_artist,
                         &metadata_store.song_album_artist_changed, cs)) {
-        debug(1, "MH Song Album Artist set to: \"%s\"", metadata_store.song_album_artist);
+        debug(2, "MH Song Album Artist set to: \"%s\"", metadata_store.song_album_artist);
       }
       free(cs);
       break;
     case 'assn':
       cs = strndup(data, length);
       if (string_update(&metadata_store.sort_name, &metadata_store.sort_name_changed, cs)) {
-        debug(1, "MH Sort Name set to: \"%s\"", metadata_store.sort_name);
+        debug(2, "MH Sort Name set to: \"%s\"", metadata_store.sort_name);
       }
       free(cs);
       break;
     case 'assa':
       cs = strndup(data, length);
       if (string_update(&metadata_store.sort_artist, &metadata_store.sort_artist_changed, cs)) {
-        debug(1, "MH Sort Artist set to: \"%s\"", metadata_store.sort_artist);
+        debug(2, "MH Sort Artist set to: \"%s\"", metadata_store.sort_artist);
       }
       free(cs);
       break;
     case 'assu':
       cs = strndup(data, length);
       if (string_update(&metadata_store.sort_album, &metadata_store.sort_album_changed, cs)) {
-        debug(1, "MH Sort Album set to: \"%s\"", metadata_store.sort_album);
+        debug(2, "MH Sort Album set to: \"%s\"", metadata_store.sort_album);
       }
       free(cs);
       break;
     case 'assc':
       cs = strndup(data, length);
       if (string_update(&metadata_store.sort_composer, &metadata_store.sort_composer_changed, cs)) {
-        debug(1, "MH Sort Composer set to: \"%s\"", metadata_store.sort_composer);
+        debug(2, "MH Sort Composer set to: \"%s\"", metadata_store.sort_composer);
       }
       free(cs);
     default:
@@ -489,17 +468,17 @@ void metadata_hub_process_metadata(uint32_t type, uint32_t code, char *data, uin
     case 'pcen':
       break;
     case 'mdst':
-      debug(1, "MH Metadata stream processing start.");
+      debug(2, "MH Metadata stream processing start.");
       metadata_hub_modify_prolog();
       break;
     case 'mden':
-      debug(1, "MH Metadata stream processing end.");
+      debug(2, "MH Metadata stream processing end.");
       metadata_hub_modify_epilog(1);
-      debug(1, "MH Metadata stream processing epilog complete.");
+      debug(2, "MH Metadata stream processing epilog complete.");
       break;
     case 'PICT':
       metadata_hub_modify_prolog();
-      debug(1, "MH Picture received, length %u bytes.", length);
+      debug(2, "MH Picture received, length %u bytes.", length);
       char uri[2048];
       if (length > 16) {
         char *pathname = metadata_write_image_file(data, length);
